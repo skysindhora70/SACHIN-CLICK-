@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Sachin Clicker</string>
+    <string name="accessibility_service_name">Sachin Clicker Automation Service</string>
+    <string name="accessibility_service_description">Observes visible ride requests to match configured pickup and drop distance limits, and optionally accepts eligible rides when automation is enabled by the user.</string>
+    <string name="notification_channel_name">Sachin Clicker Automation</string>
+    <string name="notification_channel_desc">Active automation status and quick controls for Sachin Clicker.</string>
+    <string name="fgs_special_use_desc">Driver ride distance matching and safety overlay</string>
+</resources>

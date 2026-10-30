@@ -1,0 +1,93 @@
+name: Build Sachin Clicker APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build & Package Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "gradle"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Configure Gradle permissions
+        run: chmod +x ./gradlew
+
+      - name: Restore Keystore & Configuration
+        run: |
+          if [ -f "debug.keystore.base64" ]; then
+            base64 -d debug.keystore.base64 > debug.keystore
+          else
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          # Ensure .env exists if .env.example is provided
+          if [ ! -f ".env" ] && [ -f ".env.example" ]; then
+            cp .env.example .env
+          fi
+
+      - name: Build Debug APK with Gradle
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Verify APK Exists
+        run: |
+          if [ ! -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
+            echo "Error: app-debug.apk not found at app/build/outputs/apk/debug/app-debug.apk"
+            exit 1
+          fi
+          echo "APK successfully built. File size: $(du -h app/build/outputs/apk/debug/app-debug.apk | cut -f1)"
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: Sachin-Clicker-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Prepare APK for Direct Release
+        if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/'))
+        run: |
+          mkdir -p release-assets
+          cp app/build/outputs/apk/debug/app-debug.apk release-assets/Sachin-Clicker.apk
+
+      - name: Publish Direct Download to GitHub Releases
+        if: success() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/'))
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/Sachin-Clicker.apk
+          tag_name: latest
+          name: "Sachin Clicker Latest Release"
+          body: |
+            ## Sachin Clicker - Driver Automation Assistant
+
+            ### Direct Mobile Download:
+            Download **`Sachin-Clicker.apk`** below directly onto your Android phone and tap to install!
+
+            - **Version**: 1.0 (Debug Build)
+            - **Package**: `com.aistudio.sachinclicker.rytkza`
+            - **Built with**: Kotlin, Jetpack Compose, Material 3, Minimum Android SDK 26 (Android 8.0+)
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
